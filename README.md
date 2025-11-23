@@ -3,22 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Thawing Reminder - Alarm Agresif & Persistent (MLGJAK)</title>
+    <title>Thawing Sync Reminder</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4A90E2"> <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: gap: https://ssl.gstatic.com; style-src 'self' 'unsafe-inline'; media-src *; connect-src 'self' https://*.firebaseio.com wss://*.firebaseio.com; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com https://*.firebaseio.com; font-src 'self' data:;">
+    <script type="text/javascript" src="cordova.js"></script>
     
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     
     <style>
         /* ==================== 
-           CSS: REVISI STYLING & RESPONSIVITAS 
+           CSS: STYLING DAN RESPONSIVITAS 
            ==================== */
         :root {
             --color-white: #ffffff;
-            --color-light-bg: #f7f9ff; /* Background sangat pucat */
-            --color-primary-blue: #4A90E2; /* Biru Primer */
-            --color-accent-pink: #FF69B4; /* Hot Pink */
+            --color-light-bg: #f7f9ff;
+            --color-primary-blue: #4A90E2;
+            --color-accent-pink: #FF69B4;
             --color-text-dark: #333333;
-            --color-warning: #FFC0CB; /* Soft Pink untuk warning */
-            --color-alert: #DC3545; /* Merah untuk alarm */
+            --color-warning: #FFC0CB;
+            --color-alert: #DC3545;
+            --color-syncing: #FFA500; /* Warna baru untuk Syncing/Loading */
         }
         
         body {
@@ -37,11 +44,11 @@
         .main-container {
             background-color: var(--color-white);
             padding: 30px;
-            border-radius: 16px; /* Lebih modern */
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08); /* Shadow yang halus */
+            border-radius: 16px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
             text-align: center;
             width: 100%;
-            max-width: 850px; /* Lebar lebih besar untuk 2 kolom */
+            max-width: 850px;
             box-sizing: border-box; 
         }
 
@@ -58,7 +65,6 @@
         }
 
         .timer-list {
-            /* Tampilan 2 Kolom Default (untuk tablet ke atas) */
             display: grid;
             grid-template-columns: repeat(2, 1fr); 
             gap: 20px;
@@ -71,24 +77,29 @@
             border-radius: 12px;
             background-color: var(--color-white);
             transition: all 0.3s;
-            text-align: center; /* Konten di tengah */
+            text-align: center;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
         }
 
         .timer-card h2 {
-            color: var(--color-accent-pink); /* Nama item pakai Pink */
+            color: var(--color-accent-pink);
             padding-bottom: 5px;
             font-size: 1.3em;
             font-weight: 600;
         }
 
         .countdown-display {
-            font-size: 2.5em; /* Lebih besar */
-            margin: 15px 0;
-            padding: 10px 0;
+            font-size: 2.5em;
+            margin: 15px 0 5px 0; /* Margin atas bawah dikurangi sedikit */
             font-weight: 700;
             color: var(--color-primary-blue);
-            background: none; /* Hilangkan background default */
+        }
+        
+        /* STYLE UNTUK WAKTU SELESAI */
+        .end-time-display {
+            font-size: 0.85em;
+            color: #999;
+            margin-bottom: 10px;
         }
 
         .alarm-message {
@@ -119,6 +130,12 @@
             border-radius: 8px;
             font-family: 'Poppins', sans-serif;
             font-size: 1em;
+            transition: border-color 0.2s;
+        }
+        /* Fokus input */
+        .timer-controls input:focus {
+            border-color: var(--color-primary-blue);
+            outline: none;
         }
 
         .timer-controls button {
@@ -132,21 +149,32 @@
         }
         .timer-controls button:active { transform: scale(0.98); }
 
+        /* Style untuk Tombol Syncing */
+        .start-btn.syncing {
+            background-color: var(--color-syncing) !important;
+            color: white;
+            animation: pulse-sync 1s infinite alternate;
+        }
+        
         .start-btn { 
             background-color: var(--color-primary-blue); 
             color: white; 
         }
-        .start-btn:hover { background-color: #387ad1; }
+        .start-btn:hover:not(:disabled):not(.syncing) { background-color: #387ad1; }
         
         .reset-btn { 
-            background-color: var(--color-alert); /* Reset pakai warna merah/pink */
+            background-color: var(--color-alert);
             color: white; 
         }
-        .reset-btn:hover { background-color: #b82c3c; }
+        .reset-btn:hover:not(:disabled) { background-color: #b82c3c; }
+
+        .timer-controls button:disabled {
+            background-color: #999;
+            cursor: not-allowed;
+            color: #ccc;
+        }
 
         /* --- STATE ALERT CSS --- */
-
-        /* WARNING (15 Menit) - Menggunakan Soft Pink dan Biru Tua */
         .timer-card.warning {
             border-color: var(--color-warning);
             box-shadow: 0 0 10px rgba(255, 192, 203, 0.5);
@@ -156,9 +184,7 @@
             color: var(--color-primary-blue); 
             animation: pulse-warn 1s infinite alternate; 
         }
-        .timer-card.warning h2 { color: var(--color-primary-blue); }
 
-        /* ALERT (Waktu Habis) - Menggunakan Hot Pink Agresif */
         .timer-card.alert {
             border-color: var(--color-alert);
             background-color: #ffeff3;
@@ -170,9 +196,8 @@
             animation: none;
         }
         
-        /* ALARM GLOBAL AGRESIF (Flash Body) */
         .flash-alarm-red {
-            background-color: #ff4d6d !important; /* Pink Agresif */
+            background-color: #ff4d6d !important;
             transition: background-color 0.2s; 
         }
 
@@ -181,72 +206,37 @@
             from { transform: scale(1); opacity: 1; }
             to { transform: scale(1.01); opacity: 0.9; }
         }
-
-        /* MEDIA QUERY - OPTIMALISASI MOBILE & TABLET */
-        
-        /* Tablet/Small Desktop - Pertahankan 2 kolom */
-        @media (min-width: 651px) and (max-width: 850px) {
-            .main-container { padding: 20px; }
+        @keyframes pulse-sync {
+            from { background-color: var(--color-syncing); }
+            to { background-color: #ff7f00; }
         }
 
-        /* Mobile View - Paksakan 1 kolom */
+        /* MEDIA QUERY */
         @media (max-width: 650px) {
             body { padding: 10px 0; }
             .main-container { padding: 15px; border-radius: 0; box-shadow: none; max-width: 100%;}
-            
-            /* Ubah ke 1 kolom */
-            .timer-list { 
-                grid-template-columns: 1fr; 
-                gap: 15px; 
-            } 
-            
+            .timer-list { grid-template-columns: 1fr; gap: 15px; } 
             .timer-card { padding: 15px; }
-            h1 { font-size: 1.8em; }
-            p { font-size: 0.8em; }
-            
-            .timer-card h2 { font-size: 1.2em; }
-            .countdown-display { font-size: 2em; margin: 10px 0; }
-            
-            /* Kontrol: Input dan Tombol berbaris vertikal */
-            .timer-controls { 
-                flex-wrap: wrap; 
-                gap: 8px; 
-                justify-content: space-between;
-            }
-            
-            .timer-controls label { 
-                flex-basis: 100%; /* Label ambil 1 baris */
-                text-align: left;
-                font-size: 0.9em;
-            }
-            .timer-controls input { 
-                max-width: 80px; 
-                flex-grow: 0;
-            }
-            /* Tombol START/RESET bagi rata 50% */
-            .timer-controls button { 
-                padding: 10px; 
-                font-size: 0.9em; 
-                flex-basis: calc(50% - 5px); 
-            }
+            .countdown-display { font-size: 2em; margin: 10px 0 5px 0; }
+            .timer-controls { flex-wrap: wrap; gap: 8px; justify-content: space-between; }
+            .timer-controls label { flex-basis: 100%; text-align: left; font-size: 0.9em; }
+            .timer-controls input { max-width: 80px; flex-grow: 0; }
+            .timer-controls button { padding: 10px; font-size: 0.9em; flex-basis: calc(50% - 5px); }
         }
     </style>
-    
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 </head>
 <body>
     <div class="main-container">
-        <h1>Timer Thawing Reminder 🧊 (SHARED)</h1>
-        <p>Status timer disinkronkan secara real-time. UI Modern: Biru & Pink.</p>
+        <h1>Gacoan Timer Thawing 🧊</h1>
+        <p>Timer disinkronkan secara real-time. (v1.2 Sync)</p>
         
         <div class="timer-list" id="timer-list">
-            </div>
+        </div>
     </div>
 
     <script>
        // ===================================
-        // FIREBASE CONFIGURATION (Biarkan tidak berubah)
+        // FIREBASE CONFIGURATION (WAJIB GANTI)
         // ===================================
         const firebaseConfig = {
           apiKey: "AIzaSyBtUlghTw806GuGuwOXGNgoqN6Rkcg0IMM",
@@ -262,16 +252,17 @@
 
         // Initialize Firebase
         try {
-            firebase.initializeApp(firebaseConfig);
+            if (!firebase.apps.length) {
+                 firebase.initializeApp(firebaseConfig);
+            }
         } catch (e) {
             console.error("Firebase Initialization Failed. Check your config.", e);
         }
         
-        // Dapatkan referensi database
         const dbRef = firebase.database().ref('thawingTimers');
         
         /* ==================== 
-           JAVASCRIPT LOGIC (Hampir tidak berubah, hanya penyesuaian kelas CSS)
+           JAVASCRIPT LOGIC 
            ==================== */
         
         // --- KONFIGURASI APLIKASI ---
@@ -286,10 +277,7 @@
         ];
         
         const WARNING_TIME_SECONDS = 15 * 60; // 15 menit
-
-        // --- VARIABEL GLOBAL ALARM AGRESIF ---
         let activeIntervals = {}; 
-        let audioCtx;
         let notificationPermission = Notification.permission;
         
         let titleInterval = null;
@@ -300,6 +288,7 @@
 
         // Fungsi Format Waktu
         function formatTime(totalSeconds) {
+            totalSeconds = Math.max(0, totalSeconds); // Pastikan tidak negatif
             const hours = Math.floor(totalSeconds / 3600);
             const minutes = Math.floor((totalSeconds % 3600) / 60);
             const seconds = totalSeconds % 60;
@@ -311,30 +300,35 @@
             return `${h}:${m}:${s}`;
         }
         
+        // =================================================
+        // 🚨 FUNGSI ALARM AGRESIF
+        // =================================================
+        
+        // Meminta izin audio/suara dari user
         function resumeAudioContext() {
-             // Dibiarkan untuk kompatibilitas
-             if (audioCtx && audioCtx.state === 'suspended') {
-                 audioCtx.resume().catch(e => console.error("Failed to resume AudioContext:", e));
+             // Inisialisasi AudioContext (untuk kompatibilitas)
+             if (!window.audioCtx) {
+                 window.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+             }
+             if (window.audioCtx.state === 'suspended') {
+                 window.audioCtx.resume().catch(e => console.error("Failed to resume AudioContext:", e));
              }
         }
         
-        // =================================================
-        // 🚨 FUNGSI TEXT-TO-SPEECH
-        // =================================================
         function speakMessage(message) {
             if ('speechSynthesis' in window) {
-                // Hentikan ucapan yang sedang berjalan
                 window.speechSynthesis.cancel(); 
                 
                 const utterance = new SpeechSynthesisUtterance(message);
                 
+                // Coba temukan suara Indonesia
                 const voices = window.speechSynthesis.getVoices();
-                const indoVoice = voices.find(v => v.lang === 'id-ID' || v.lang === 'id_ID');
+                const indoVoice = voices.find(v => v.lang.startsWith('id'));
                 
                 if (indoVoice) {
                     utterance.voice = indoVoice;
                 } else {
-                    utterance.lang = 'id-ID'; // Fallback
+                    utterance.lang = 'id-ID';
                 }
                 
                 utterance.rate = 1.0; 
@@ -342,11 +336,9 @@
                 
                 window.speechSynthesis.speak(utterance);
             } else {
-                console.warn("Web Speech API tidak didukung. Alarm ucapan dinonaktifkan.");
+                console.warn("Web Speech API tidak didukung.");
             }
         }
-        // =================================================
-
 
         function sendNotification(itemName) {
             if (notificationPermission === 'granted') {
@@ -401,24 +393,20 @@
             }
             document.title = originalTitle;
             document.body.classList.remove(FLASH_COLOR_CLASS);
-            // Hentikan suara ucapan
             if ('speechSynthesis' in window) {
                 window.speechSynthesis.cancel(); 
             }
         }
         
-        // --- LOGIKA UTAMA: FUNGSI TICK ---
+        // --- LOGIKA UTAMA: FUNGSI TICK (Update tampilan berdasarkan data Firebase) ---
         
-        /**
-         * Fungsi tick sekarang dipicu oleh listener Firebase.
-         */
         function tick(itemId, endTimeMs, inputMinutes) {
             const timerCard = document.getElementById(`card-${itemId}`);
             if (!timerCard) return;
 
             const display = document.getElementById(`display-${itemId}`);
             const alarmMessage = document.getElementById(`msg-${itemId}`);
-            // Gunakan find() untuk mendapatkan item yang benar, karena innerHTML h2 bisa berubah
+            const endTimeDisplay = document.getElementById(`end-time-${itemId}`); // BARU
             const item = THAWING_ITEMS.find(i => i.id === itemId);
             const itemName = item ? item.name : 'Bahan';
             
@@ -427,7 +415,7 @@
             const now = Date.now();
             let duration = Math.floor((endTimeMs - now) / 1000); 
             
-            // Perbarui UI Kontrol
+            // --- UPDATE TAMPILAN KONTROL ---
             const inputTime = document.getElementById(`time-input-${itemId}`);
             const startButton = document.getElementById(`start-btn-${itemId}`);
             const resetButton = document.getElementById(`reset-btn-${itemId}`);
@@ -435,8 +423,12 @@
             if (inputTime) inputTime.readOnly = true;
             if (startButton) startButton.style.display = 'none';
             if (resetButton) resetButton.style.display = 'block';
+            
+            // Tampilkan waktu selesai (End Time)
+            const formattedEndTime = new Date(endTimeMs).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+            if (endTimeDisplay) endTimeDisplay.textContent = `Selesai: ${formattedEndTime}`;
 
-            // 1. Update tampilan
+            // 1. Update tampilan waktu
             if (duration >= 0) {
                  display.textContent = formatTime(duration);
             }
@@ -458,17 +450,15 @@
             // 3. Bunyikan alarm di mode WARNING (setiap 30 detik)
             if (duration <= WARNING_TIME_SECONDS && duration > 0 && duration % 30 === 0) {
                 const remainingMinutes = Math.ceil(duration / 60);
-                // 🚨 TTS: Peringatan 15 Menit
                 speakMessage(`Perhatian! Waktu thawing ${itemName} kurang ${remainingMinutes} menit.`); 
             }
             
             // 4. Kondisi Waktu Habis: (Alarm & Hapus dari database)
             if (duration <= 0) {
-                // Hentikan interval lokal
                 clearTimeout(activeIntervals[itemId]);
                 delete activeIntervals[itemId];
                 
-                // Hapus entry dari Firebase
+                // Hapus entry dari Firebase (PENTING untuk sinkronisasi RESET)
                 dbRef.child(itemId).remove().catch(e => console.log('Hapus item gagal.'));
                 
                 display.textContent = "WAKTU HABIS!";
@@ -482,8 +472,6 @@
                 startVibrationAlert(); 
                 startTitleAlert(itemName);
                 startFlashAlarm();
-                
-                // 🚨 TTS: Waktu Habis
                 speakMessage(`PERINGATAN KERAS! Waktu thawing ${itemName} telah habis! Segera ambil bahan!`); 
                 
                 return; 
@@ -504,12 +492,18 @@
             
             const timerCard = document.getElementById(`card-${itemId}`);
             const inputTime = document.getElementById(`time-input-${itemId}`);
+            const startButton = document.getElementById(`start-btn-${itemId}`);
             const durationMinutes = parseInt(inputTime.value);
 
             if (isNaN(durationMinutes) || durationMinutes <= 0) {
                 alert(`Mohon masukkan waktu thawing yang valid.`);
                 return;
             }
+            
+            // BARU: Visual Feedback Instan
+            startButton.textContent = "SYNCING...";
+            startButton.classList.add('syncing');
+            startButton.disabled = true; 
             
             const durationMs = durationMinutes * 60 * 1000;
             const endTimeMs = Date.now() + durationMs; 
@@ -521,10 +515,13 @@
             })
             .then(() => {
                 console.log(`Timer ${itemId} started and synced.`);
+                // UI akan diubah ke RUNNING oleh listener, menghilangkan status 'syncing'
             })
             .catch(error => {
                 alert("Gagal memulai timer. Periksa koneksi atau aturan Firebase.");
                 console.error(error);
+                // Kembalikan tombol jika gagal
+                localResetUI(itemId, durationMinutes); 
             });
         }
 
@@ -559,6 +556,7 @@
             const timerCard = document.getElementById(`card-${itemId}`);
             const inputTime = document.getElementById(`time-input-${itemId}`);
             const display = document.getElementById(`display-${itemId}`);
+            const endTimeDisplay = document.getElementById(`end-time-${itemId}`); // BARU
             const alarmMessage = document.getElementById(`msg-${itemId}`);
             const startButton = document.getElementById(`start-btn-${itemId}`);
             const resetButton = document.getElementById(`reset-btn-${itemId}`);
@@ -566,16 +564,24 @@
             if (!timerCard || !inputTime || !display || !startButton || !resetButton) return; 
 
             timerCard.classList.remove('alert', 'warning');
+            startButton.classList.remove('syncing'); // Hapus status syncing
             inputTime.readOnly = false;
             startButton.style.display = 'block';
+            startButton.textContent = 'START';
+            startButton.disabled = false;
             resetButton.style.display = 'none';
             alarmMessage.style.display = 'none';
 
             inputTime.value = finalInput;
             display.textContent = formatTime(finalInput * 60);
+            if (endTimeDisplay) endTimeDisplay.textContent = 'Durasi default'; // Reset End Time Display
 
-            // Fokus pada input hanya jika di-reset
-            // inputTime.focus(); 
+            // BARU: Fokus pada input
+            if (!timerCard.classList.contains('alert')) {
+                setTimeout(() => {
+                    inputTime.focus();
+                }, 100); 
+            }
         }
 
         // Fungsi untuk membuat elemen HTML timer
@@ -592,6 +598,8 @@
                     ${formatTime(item.defaultTimeMinutes * 60)}
                 </div>
                 
+                <div id="end-time-${item.id}" class="end-time-display">Durasi default</div> 
+
                 <div id="msg-${item.id}" class="alarm-message" style="display: none;"></div>
 
                 <div class="timer-controls">
@@ -607,11 +615,15 @@
             document.getElementById(`start-btn-${item.id}`).addEventListener('click', () => startCountdown(item.id));
             document.getElementById(`reset-btn-${item.id}`).addEventListener('click', () => resetTimer(item.id));
 
+            // Tambahkan event listener untuk input agar display berubah
             document.getElementById(`time-input-${item.id}`).addEventListener('input', (event) => {
+                const minutes = parseInt(event.target.value) || 0;
+                const display = document.getElementById(`display-${item.id}`);
+                const endTimeDisplay = document.getElementById(`end-time-${item.id}`);
+                
                 if (!document.getElementById(`time-input-${item.id}`).readOnly) {
-                    const minutes = parseInt(event.target.value) || 0;
-                    const display = document.getElementById(`display-${item.id}`);
                     display.textContent = formatTime(minutes * 60);
+                    if (endTimeDisplay) endTimeDisplay.textContent = 'Durasi custom';
                 }
             });
             
@@ -641,13 +653,20 @@
                         const endTime = timerState.endTime;
                         const inputMinutes = timerState.inputMinutes || item.defaultTimeMinutes;
                         
+                        // Waktu sudah habis, panggil tick untuk trigger alarm/reset
                         if (endTime < Date.now()) {
-                            // Waktu sudah habis (past event), panggil tick untuk trigger alarm/reset
                             tick(itemId, endTime, inputMinutes); 
                         } else {
                             // Waktu masih berjalan
                             tick(itemId, endTime, inputMinutes);
                         }
+                        
+                        // Pastikan status syncing hilang jika Firebase sudah merespon
+                        const startButton = document.getElementById(`start-btn-${itemId}`);
+                         if (startButton) {
+                             startButton.classList.remove('syncing');
+                         }
+
                     } else {
                         // Timer TIDAK berjalan (Sudah di-reset atau belum dimulai)
                         clearTimeout(activeIntervals[itemId]);
@@ -658,6 +677,15 @@
                 });
             });
         });
+        
+        // PWA SERVICE WORKER REGISTRATION (Di luar event DOMContentLoaded)
+        if ('serviceWorker' in navigator) {
+          window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/service-worker.js')
+              .then(registration => console.log('ServiceWorker registered'))
+              .catch(error => console.error('ServiceWorker registration failed:', error));
+          });
+        }
     </script>
 </body>
 </html>
