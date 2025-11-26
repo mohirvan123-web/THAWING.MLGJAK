@@ -82,6 +82,19 @@
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
         }
 
+        /* BARU: Style untuk timer yang sedang berjalan */
+        .timer-card.running-mode {
+            border-left: 5px solid var(--color-primary-blue); /* Garis tebal di kiri */
+            background-color: #f0f7ff; /* Warna latar belakang sedikit biru muda */
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); 
+        }
+
+        .timer-card.running-mode h2 {
+            color: var(--color-primary-blue); /* Ubah warna header */
+        }
+        /* Akhir Style Running Mode */
+
+
         .timer-card h2 {
             color: var(--color-accent-pink);
             padding-bottom: 5px;
@@ -242,7 +255,7 @@
 <body>
     <div class="main-container">
         <h1>Gacoan Timer Thawing 🧊</h1>
-        <p>Timer disinkronkan secara real-time. (v1.4 Final)</p>
+        <p>Malang Jakarta V.1.2</p>
         
         <div class="timer-list" id="timer-list">
         </div>
@@ -419,6 +432,11 @@
             const timerCard = document.getElementById(`card-${itemId}`);
             if (!timerCard) return;
 
+            // BARU: Tambahkan class 'running-mode' jika belum ada (sinkronisasi)
+            if (!timerCard.classList.contains('running-mode')) {
+                timerCard.classList.add('running-mode');
+            }
+
             const display = document.getElementById(`display-${itemId}`);
             const alarmMessage = document.getElementById(`msg-${itemId}`);
             const endTimeDisplay = document.getElementById(`end-time-${itemId}`);
@@ -490,7 +508,7 @@
                 alarmMessage.textContent = `✅ SELESAI! Bahan ${itemName} butuh penanganan.`;
                 alarmMessage.style.display = 'block';
                 
-                // BARU: Tombol berubah menjadi STOP ALARM
+                // Tombol berubah menjadi STOP ALARM
                 if (resetButton) {
                     resetButton.textContent = 'STOP ALARM & AMBIL'; 
                     resetButton.classList.add('stop-alarm-btn'); 
@@ -528,6 +546,10 @@
                 return;
             }
             
+            // **BARU: Tambahkan class 'running-mode' saat memulai**
+            const timerCard = document.getElementById(`card-${itemId}`);
+            if (timerCard) timerCard.classList.add('running-mode');
+
             // Visual Feedback Instan
             startButton.textContent = "SYNCING...";
             startButton.classList.add('syncing');
@@ -554,7 +576,7 @@
         function resetTimer(itemId) {
             const resetButton = document.getElementById(`reset-btn-${itemId}`);
             
-            // **BARU: SEMBUNYIKAN TOMBOL SEGERA SAAT DIKLIK**
+            // SEMBUNYIKAN TOMBOL SEGERA SAAT DIKLIK
             if (resetButton) {
                 resetButton.style.display = 'none'; 
             }
@@ -598,6 +620,9 @@
 
             // Hapus semua status dan kembalikan ke tampilan default
             timerCard.classList.remove('alert', 'warning');
+            // **BARU: Hapus class 'running-mode'**
+            timerCard.classList.remove('running-mode');
+
             startButton.classList.remove('syncing'); 
             inputTime.readOnly = false;
             startButton.style.display = 'block';
