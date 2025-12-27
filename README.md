@@ -260,7 +260,7 @@
 <body>
     <div class="main-container">
         <h1>Gacoan Timer Thawing 🧊</h1>
-        <p>Malang Mondoroko /V.1.3 (Alarm Debounced)</p>
+        <p>Malang Mondoroko V.1.3 (Alarm Debounced)</p>
         
         <div class="timer-list" id="timer-list">
         </div>
